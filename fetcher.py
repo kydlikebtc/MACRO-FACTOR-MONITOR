@@ -234,9 +234,32 @@ class YahooFinanceClient:
                 self._opener = None
         return None
 
+    def fetch_v8_price(self, symbol: str) -> Optional[float]:
+        """从 Yahoo Finance v8 chart API 获取最新价格 (无需 crumb 认证，更稳定)"""
+        try:
+            url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=5d&interval=1d"
+            text = _http_get_with_retry(url, headers={
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+            }, timeout=10)
+            if text is None:
+                return None
+            data = json.loads(text)
+            meta = data["chart"]["result"][0].get("meta", {})
+            price = meta.get("regularMarketPrice")
+            if price is not None and float(price) > 0:
+                logger.info(f"  [Yahoo v8] {symbol} = {price}")
+                return float(price)
+        except Exception as e:
+            logger.warning(f"[Yahoo v8] {symbol}: {e}")
+        return None
+
     def fetch_dxy(self) -> Optional[float]:
         """获取美元指数 DXY"""
         return self.fetch_quote("DX-Y.NYB")
+
+    def fetch_dxy_v8(self) -> Optional[float]:
+        """获取美元指数 DXY (v8 chart API, 无需认证)"""
+        return self.fetch_v8_price("DX-Y.NYB")
 
     def fetch_sp500(self) -> Optional[float]:
         """获取 S&P 500 指数"""
@@ -301,6 +324,33 @@ class WebScraper:
                     if val > 5:  # 过滤异常值
                         logger.info(f"  [Multpl] TTM PE = {val}")
                         return val
+        return None
+
+    @staticmethod
+    def fetch_wsj_forward_pe() -> Optional[float]:
+        """从 WSJ 获取 S&P 500 Forward PE (Estimated PE)"""
+        html = WebScraper._http_get("https://www.wsj.com/market-data/stocks/peyields")
+        if html:
+            # WSJ 页面: S&P 500 行格式为 "S&amp;P 500 Index | TTM PE | ... | Est PE | ..."
+            sp_idx = html.find("S&amp;P 500")
+            if sp_idx < 0:
+                sp_idx = html.find("S&P 500")
+            if sp_idx >= 0:
+                segment = html[sp_idx:sp_idx + 500]
+                nums = re.findall(r'(\d+\.\d+)', segment)
+                # 第 3 个数字是 Estimated PE (Forward PE)
+                if len(nums) >= 3:
+                    val = float(nums[2])
+                    if 5 < val < 100:
+                        logger.info(f"  [WSJ] Forward PE = {val}")
+                        return val
+            # 备用: 匹配 "Estimated" 附近的数字
+            match = re.search(r'Estimated.*?P/E.*?(\d+\.\d+)', html, re.DOTALL | re.IGNORECASE)
+            if match:
+                val = float(match.group(1))
+                if 5 < val < 100:
+                    logger.info(f"  [WSJ] Forward PE (est pattern) = {val}")
+                    return val
         return None
 
     @staticmethod
@@ -384,9 +434,11 @@ class MacroDataFetcher:
                 (self.scraper.fetch_multpl_pe, "Multpl"),
             ],
             "SP500_FWD_PE": [
+                (self.scraper.fetch_wsj_forward_pe, "WSJ"),
                 (self.yahoo.fetch_sp500_forward_pe, "Yahoo Finance"),
             ],
             "DXY": [
+                (self.yahoo.fetch_dxy_v8, "Yahoo v8"),
                 (self.yahoo.fetch_dxy, "Yahoo Finance"),
             ],
             "SHILLER_CAPE": [
