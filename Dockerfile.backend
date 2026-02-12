@@ -1,0 +1,19 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 复制核心 Python 模块
+COPY agents.py config.py db.py fetcher.py models.py swarm.py scheduler.py dashboard.py run.py ./
+
+# 复制 server 包
+COPY server/ ./server/
+
+# 数据目录 (通过 volume 挂载持久化)
+RUN mkdir -p /app/data
+
+EXPOSE 8000
+
+CMD ["uvicorn", "server.main:app", "--host", "0.0.0.0", "--port", "8000"]
