@@ -63,18 +63,25 @@ export default function SignalHero({
       </div>
       <div className="signal-hero-right">
         <div className="signal-score-label">WEIGHTED SCORE</div>
-        <div className="score-bar-container">
-          <div className="score-bar-bg" />
-          <div
-            className="score-bar-indicator"
-            style={{
-              left: `${scorePct.toFixed(1)}%`,
-              background: config.color,
-            }}
-          />
-        </div>
-        <div className="score-value" style={{ color: config.color }}>
-          {weightedScore >= 0 ? '+' : ''}{weightedScore.toFixed(3)}
+        <div className="score-row">
+          <div className="score-value" style={{ color: config.color }}>
+            {weightedScore >= 0 ? '+' : ''}{weightedScore.toFixed(3)}
+          </div>
+          <div className="score-bar-container">
+            <div className="score-bar-bg" />
+            <div
+              className="score-bar-indicator"
+              style={{
+                left: `${scorePct.toFixed(1)}%`,
+                background: config.color,
+              }}
+            />
+            <div className="score-bar-labels">
+              <span>-1</span>
+              <span>0</span>
+              <span>+1</span>
+            </div>
+          </div>
         </div>
         <div className="score-votes">
           <span className="vote-bull">Bull {bullCount}</span>
