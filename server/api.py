@@ -10,7 +10,7 @@ from typing import Optional
 from fastapi import APIRouter, Query
 
 from server.deps import get_db, get_fred_api_key
-from server.background import run_swarm_in_background, is_swarm_running
+from server.background import run_swarm_in_background, is_swarm_running, run_backfill_in_background, is_backfill_running
 from server.schemas import (
     ReportSchema,
     SignalHistoryResponse,
@@ -132,3 +132,20 @@ def get_run_status():
     if is_swarm_running():
         return RunResponse(status="running", message="Swarm 正在运行中")
     return RunResponse(status="idle", message="Swarm 空闲")
+
+
+@router.post("/backfill", response_model=RunResponse)
+def trigger_backfill(days: int = Query(default=90, ge=7, le=365)):
+    """手动触发历史数据回填"""
+    if is_backfill_running():
+        return RunResponse(status="already_running", message="回填任务正在运行中")
+
+    fred_key = get_fred_api_key()
+    thread = threading.Thread(
+        target=run_backfill_in_background,
+        kwargs={"fred_api_key": fred_key, "days": days},
+        daemon=True,
+    )
+    thread.start()
+
+    return RunResponse(status="started", message=f"历史数据回填已启动 ({days} 天)")

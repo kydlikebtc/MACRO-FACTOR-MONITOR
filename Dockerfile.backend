@@ -6,7 +6,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 复制核心 Python 模块
-COPY agents.py config.py db.py fetcher.py models.py swarm.py scheduler.py dashboard.py run.py ./
+COPY agents.py config.py db.py fetcher.py models.py swarm.py scheduler.py dashboard.py run.py backfill.py ./
 
 # 复制 server 包
 COPY server/ ./server/

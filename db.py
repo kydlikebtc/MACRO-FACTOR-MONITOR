@@ -128,8 +128,11 @@ class MacroFactorDB:
 
     def save_reading(self, factor_key: str, value: float, unit: str,
                      signal: str, is_live: bool, source_name: str,
-                     source_url: str, fetch_method: str) -> int:
+                     source_url: str, fetch_method: str,
+                     fetched_at: Optional[str] = None) -> int:
         """保存一个因子读数到时间序列"""
+        if fetched_at is None:
+            fetched_at = datetime.now().isoformat()
         with self._connect() as conn:
             cursor = conn.execute(
                 """INSERT INTO factor_readings
@@ -137,7 +140,7 @@ class MacroFactorDB:
                     source_url, fetch_method, fetched_at)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (factor_key, value, unit, signal, int(is_live), source_name,
-                 source_url, fetch_method, datetime.now().isoformat())
+                 source_url, fetch_method, fetched_at)
             )
             return cursor.lastrowid
 
